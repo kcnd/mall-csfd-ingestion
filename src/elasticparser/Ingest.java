@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package elasticparser;
 
 import java.io.BufferedReader;
@@ -23,18 +22,30 @@ import java.util.logging.Logger;
  * @author Ivan
  */
 class Ingest {
-    
-    public Ingest(){
+
+    private String hostES = "localhost";
+    private String portES = "9200";
+    private String pathToData = "C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data";
+
+    public Ingest() {
         createIndex("csfd");
         createIndex("mall");
-        loadFile("C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data/csfd/negative.txt", "csfd", "negative");
-        loadFile("C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data/csfd/positive.txt", "csfd", "positive");
-        loadFile("C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data/csfd/neutral.txt", "csfd","neutral");
-        
-        loadFile("C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data/mallcz/negative.txt", "mall", "negative");
-        loadFile("C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data/mallcz/positive.txt", "mall", "positive");
-        loadFile("C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data/mallcz/neutral.txt", "mall", "neutral");
-        
+
+        prepareMapping("csfd", "negative");
+        prepareMapping("csfd", "neutral");
+        prepareMapping("csfd", "positive");
+        prepareMapping("mall", "negative");
+        prepareMapping("mall", "neutral");
+        prepareMapping("mall", "positive");
+
+        loadFile(pathToData + "/csfd/negative.txt", "csfd", "negative");
+        loadFile(pathToData + "/csfd/positive.txt", "csfd", "positive");
+        loadFile(pathToData + "/csfd/neutral.txt", "csfd", "neutral");
+
+        loadFile(pathToData + "/mallcz/negative.txt", "mall", "negative");
+        loadFile(pathToData + "/mallcz/positive.txt", "mall", "positive");
+        loadFile(pathToData + "/mallcz/neutral.txt", "mall", "neutral");
+
         //loadFile("negative.txt", "mall", "negative");
     }
 
@@ -43,73 +54,124 @@ class Ingest {
             BufferedReader br = new BufferedReader(new FileReader(soubor));
             String line = br.readLine();
             int i = 1;
-            while (line != null){
-                URL url = new URL("http://es.vse.cz:9200/" + index +"/"+ type +"/" + i);
+            while (line != null) {
+                URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/" + type + "/" + i);
                 HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                 httpCon.setDoOutput(true);
                 httpCon.setRequestMethod("PUT");
                 OutputStreamWriter out = new OutputStreamWriter(
-                httpCon.getOutputStream());
+                        httpCon.getOutputStream());
                 line = line.replaceAll("\\\\", "");
-                line = "{ \"body\" : \"" +line.replaceAll("\"", "") + "\"}";
-              //  System.out.println(line);
+                line = "{ \"body\" : \"" + line.replaceAll("\"", "") + "\"}";
+                //  System.out.println(line);
                 out.write(line);
                 out.close();
 
-                 BufferedReader in = new BufferedReader(
-		        new InputStreamReader(httpCon.getInputStream()));
-		String inputLine;
-		StringBuffer response = new StringBuffer();
- 
-		while ((inputLine = in.readLine()) != null) {
-			response.append(inputLine);
-		}
-		in.close();
- 
-		//print result
-		System.out.println(response.toString());
-                
-                
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(httpCon.getInputStream()));
+                String inputLine;
+                StringBuffer response = new StringBuffer();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+                //print result
+                System.out.println(response.toString());
+
                 line = br.readLine();
                 i++;
 
             }
-                    
+
         } catch (FileNotFoundException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         }
-    
+
     }
-    
-    private void createIndex(String index){
-         try {
-            URL url = new URL("http://es.vse.cz:9200/" + index + "/");
+
+    private void createIndex(String index) {
+        try {
+            URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/");
             HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
             httpCon.setDoOutput(true);
-            httpCon.setRequestMethod("POST");
-            
-           BufferedReader in = new BufferedReader(
-		        new InputStreamReader(httpCon.getInputStream()));
-		String inputLine;
-		StringBuffer response = new StringBuffer();
- 
-		while ((inputLine = in.readLine()) != null) {
-			response.append(inputLine);
-		}
-		in.close();
- 
-		//print result
-		System.out.println(response.toString());
-            
-            
+            httpCon.setRequestMethod("PUT");
+
+            String analyzer = "{\"settings\": {\"analysis\": {\"filter\": {\"czech_stop\": {\"type\":       \"stop\",\"stopwords\":  \"_czech_\"},\"czech_keywords\": {\"type\":       \"keyword_marker\",\"keywords\":   [\"x\"]}, \"czech_stemmer\": { \"type\":       \"stemmer\", \"language\":   \"czech\"}},\"analyzer\": {\"czech\": {\"tokenizer\":  \"standard\",\"filter\": [ \"lowercase\",\"czech_stop\", \"czech_keywords\", \"czech_stemmer\"]}}}}}";
+            OutputStreamWriter out = new OutputStreamWriter(
+                    httpCon.getOutputStream());
+            out.write(analyzer);
+            out.close();
+
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(httpCon.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            //print result
+            System.out.println(response.toString());
+
         } catch (MalformedURLException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
-    
+
+    private void prepareMapping(String index, String typ) {
+        String mappingBody = "{\"czech\": {\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}}";
+        String response = sendRQ(hostES, portES, index, typ, "POST", mappingBody);
+    }
+
+    private String sendRQ(String hostES, String portES, String index, String typ, String method, String message) {
+
+        String urlString = "";
+        try {
+            if (typ == null) {
+                urlString = "http://" + hostES + ":" + portES + "/" + index + "/";
+            } else {
+                urlString = "http://" + hostES + ":" + portES + "/" + index + "/" + typ;
+            }
+            URL url = new URL(urlString);
+            HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+            httpCon.setDoOutput(true);
+            httpCon.setRequestMethod(method);
+
+            if (!method.equals("GET")) {
+                OutputStreamWriter out = new OutputStreamWriter(
+                        httpCon.getOutputStream());
+                out.write(message);
+                out.close();
+            }
+
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(httpCon.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            //print result
+            return response.toString();
+
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return null;
+    }
+
 }
