@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 
 /**
  *
- * @author Ivan
+ * @author Ivan Jelinek
  */
 class Ingest {
 
@@ -45,8 +45,6 @@ class Ingest {
         loadFile(pathToData + "/mallcz/negative.txt", "mall", "negative");
         loadFile(pathToData + "/mallcz/positive.txt", "mall", "positive");
         loadFile(pathToData + "/mallcz/neutral.txt", "mall", "neutral");
-
-        //loadFile("negative.txt", "mall", "negative");
     }
 
     private void loadFile(String soubor, String index, String type) {
@@ -55,31 +53,33 @@ class Ingest {
             String line = br.readLine();
             int i = 1;
             while (line != null) {
-                URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/" + type + "/" + i);
-                HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-                httpCon.setDoOutput(true);
-                httpCon.setRequestMethod("PUT");
-                OutputStreamWriter out = new OutputStreamWriter(
-                        httpCon.getOutputStream());
                 line = line.replaceAll("\\\\", "");
                 line = "{ \"body\" : \"" + line.replaceAll("\"", "") + "\"}";
-                //  System.out.println(line);
-                out.write(line);
-                out.close();
 
-                BufferedReader in = new BufferedReader(
-                        new InputStreamReader(httpCon.getInputStream()));
-                String inputLine;
-                StringBuffer response = new StringBuffer();
+                URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/" + type + "/" + i);
+                System.out.println(sendRQ(url, "PUT", line));
+                /*  HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                 httpCon.setDoOutput(true);
+                 httpCon.setRequestMethod("PUT");
+                 OutputStreamWriter out = new OutputStreamWriter(
+                 httpCon.getOutputStream());
 
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
-                in.close();
+                 out.write(line);
+                 out.close();
 
-                //print result
-                System.out.println(response.toString());
+                 BufferedReader in = new BufferedReader(
+                 new InputStreamReader(httpCon.getInputStream()));
+                 String inputLine;
+                 StringBuffer response = new StringBuffer();
 
+                 while ((inputLine = in.readLine()) != null) {
+                 response.append(inputLine);
+                 }
+                 in.close();
+
+                 //print result
+                 System.out.println(response.toString());
+                 */
                 line = br.readLine();
                 i++;
 
@@ -95,40 +95,22 @@ class Ingest {
 
     private void createIndex(String index) {
         try {
-            URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/");
-            HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-            httpCon.setDoOutput(true);
-            httpCon.setRequestMethod("PUT");
-
             String analyzer = "{\"settings\": {\"analysis\": {\"filter\": {\"czech_stop\": {\"type\":       \"stop\",\"stopwords\":  \"_czech_\"},\"czech_keywords\": {\"type\":       \"keyword_marker\",\"keywords\":   [\"x\"]}, \"czech_stemmer\": { \"type\":       \"stemmer\", \"language\":   \"czech\"}},\"analyzer\": {\"czech\": {\"tokenizer\":  \"standard\",\"filter\": [ \"lowercase\",\"czech_stop\", \"czech_keywords\", \"czech_stemmer\"]}}}}}";
-            OutputStreamWriter out = new OutputStreamWriter(
-                    httpCon.getOutputStream());
-            out.write(analyzer);
-            out.close();
-
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(httpCon.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-
-            //print result
-            System.out.println(response.toString());
-
+            URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/");
+            System.out.println(sendRQ(url, "PUT", analyzer));
         } catch (MalformedURLException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        } 
     }
 
     private void prepareMapping(String index, String typ) {
-        String mappingBody = "{\"czech\": {\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}}";
-        String response = sendRQ(hostES, portES, index, typ, "POST", mappingBody);
+        String mappingBody = "{\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}";
+        try {
+            System.out.println(sendRQ(new URL("http://" + hostES + ":" + portES+"/" + index + "/_mapping/" + typ), "POST", mappingBody));
+            String f = "f";
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     private String sendRQ(String hostES, String portES, String index, String typ, String method, String message) {
@@ -141,6 +123,23 @@ class Ingest {
                 urlString = "http://" + hostES + ":" + portES + "/" + index + "/" + typ;
             }
             URL url = new URL(urlString);
+            return sendRQ(url, method, message);
+
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return null;
+    }
+
+    private String sendRQ(URL url, String method) {
+        return sendRQ(url, method, "");
+    }
+
+    private String sendRQ(URL url, String method, String message) {
+        try {
             HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
             httpCon.setDoOutput(true);
             httpCon.setRequestMethod(method);
@@ -164,14 +163,12 @@ class Ingest {
 
             //print result
             return response.toString();
-
         } catch (MalformedURLException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         }
-
         return null;
-    }
 
+    }
 }
