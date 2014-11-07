@@ -107,7 +107,6 @@ class Ingest {
         String mappingBody = "{\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}";
         try {
             System.out.println(sendRQ(new URL("http://" + hostES + ":" + portES+"/" + index + "/_mapping/" + typ), "POST", mappingBody));
-            String f = "f";
         } catch (MalformedURLException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         }
