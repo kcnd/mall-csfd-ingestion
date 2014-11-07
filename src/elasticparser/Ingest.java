@@ -16,6 +16,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.json.simple.JSONObject;
 
 /**
  *
@@ -53,33 +54,12 @@ class Ingest {
             String line = br.readLine();
             int i = 1;
             while (line != null) {
-                line = line.replaceAll("\\\\", "");
-                line = "{ \"body\" : \"" + line.replaceAll("\"", "") + "\"}";
-
+               // line = line.replaceAll("\\\\", "");
+               // line = "{ \"body\" : \"" + line.replaceAll("\"", "") + "\"}";
+                JSONObject lineJS = new JSONObject();
+                lineJS.put("body", line);
                 URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/" + type + "/" + i);
-                System.out.println(sendRQ(url, "PUT", line));
-                /*  HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-                 httpCon.setDoOutput(true);
-                 httpCon.setRequestMethod("PUT");
-                 OutputStreamWriter out = new OutputStreamWriter(
-                 httpCon.getOutputStream());
-
-                 out.write(line);
-                 out.close();
-
-                 BufferedReader in = new BufferedReader(
-                 new InputStreamReader(httpCon.getInputStream()));
-                 String inputLine;
-                 StringBuffer response = new StringBuffer();
-
-                 while ((inputLine = in.readLine()) != null) {
-                 response.append(inputLine);
-                 }
-                 in.close();
-
-                 //print result
-                 System.out.println(response.toString());
-                 */
+                System.out.println(sendRQ(url, "PUT", lineJS.toString()));
                 line = br.readLine();
                 i++;
 
@@ -104,9 +84,16 @@ class Ingest {
     }
 
     private void prepareMapping(String index, String typ) {
-        String mappingBody = "{\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}";
+        //String mappingBody = "{\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}";
+        JSONObject child = new JSONObject();
+        child.put("type", "string");
+        child.put("analyzer", "czech");
+        JSONObject czech = new JSONObject();
+        czech.put("czech", child);
+        JSONObject mappingBody = new JSONObject();
+        mappingBody.put("properties", czech);
         try {
-            System.out.println(sendRQ(new URL("http://" + hostES + ":" + portES+"/" + index + "/_mapping/" + typ), "POST", mappingBody));
+            System.out.println(sendRQ(new URL("http://" + hostES + ":" + portES+"/" + index + "/_mapping/" + typ), "POST", mappingBody.toString()));
         } catch (MalformedURLException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         }
