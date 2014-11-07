@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package elasticparser;
 
 import java.io.BufferedReader;
@@ -19,19 +14,25 @@ import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 
 /**
- *
+ * Trida pro zpracovani dat - index CSFD a MALL
+ * Urceno pro studenty VŠE v Praze - Kompetencniho centra pro nestrukturovana data
+ * 
  * @author Ivan Jelinek
  */
 class Ingest {
 
+    //kde mate spusten ES
     private String hostES = "localhost";
     private String portES = "9200";
+    // upravte si cestu k datovym souborum
     private String pathToData = "C:\\Users\\jelineiv\\Dropbox\\The Analytical Company\\data";
 
     public Ingest() {
+        //vytvori indexy a priradi jim analyzery
         createIndex("csfd");
         createIndex("mall");
 
+        //vytvori mapovani pro defaultni analyzery
         prepareMapping("csfd", "negative");
         prepareMapping("csfd", "neutral");
         prepareMapping("csfd", "positive");
@@ -39,6 +40,7 @@ class Ingest {
         prepareMapping("mall", "neutral");
         prepareMapping("mall", "positive");
 
+        //zpracuje data
         loadFile(pathToData + "/csfd/negative.txt", "csfd", "negative");
         loadFile(pathToData + "/csfd/positive.txt", "csfd", "positive");
         loadFile(pathToData + "/csfd/neutral.txt", "csfd", "neutral");
@@ -48,6 +50,13 @@ class Ingest {
         loadFile(pathToData + "/mallcz/neutral.txt", "mall", "neutral");
     }
 
+    /**
+     * Metoda nacte soubory a radek po radku je rozparsuje do zadaneho indexu a typu
+     * 
+     * @param soubor cesta k souboru
+     * @param index index v ES
+     * @param type typ v ES
+     */
     private void loadFile(String soubor, String index, String type) {
         try {
             BufferedReader br = new BufferedReader(new FileReader(soubor));
@@ -73,6 +82,11 @@ class Ingest {
 
     }
 
+    /**
+     * Metoda vytvori index v ES
+     * 
+     * @param index nazev indexu, ktery ma byt vytvoren
+     */
     private void createIndex(String index) {
         try {
             String analyzer = "{\"settings\": {\"analysis\": {\"filter\": {\"czech_stop\": {\"type\":       \"stop\",\"stopwords\":  \"_czech_\"},\"czech_keywords\": {\"type\":       \"keyword_marker\",\"keywords\":   [\"x\"]}, \"czech_stemmer\": { \"type\":       \"stemmer\", \"language\":   \"czech\"}},\"analyzer\": {\"czech\": {\"tokenizer\":  \"standard\",\"filter\": [ \"lowercase\",\"czech_stop\", \"czech_keywords\", \"czech_stemmer\"]}}}}}";
@@ -83,6 +97,12 @@ class Ingest {
         } 
     }
 
+    /**
+     * Metoda vytvori mapovani pro analyzer k indexu a typu, ktery je specifikovan
+     * 
+     * @param index mapovani, ktere ma byt vytvoren
+     * @param typ k namapovani
+     */
     private void prepareMapping(String index, String typ) {
         //String mappingBody = "{\"properties\": {\"czech\": {\"type\":\"string\",\"analyzer\": \"czech\"}}}";
         JSONObject child = new JSONObject();
@@ -99,6 +119,17 @@ class Ingest {
         }
     }
 
+    /**
+     * Metoda odesle RQ skrze REST API
+     * 
+     * @param hostES IP adresa ES
+     * @param portES port ES
+     * @param index index, kam se ma zprava poslat
+     * @param typ typ kam se zprava posle
+     * @param method GET, POST, PUT, DELETE
+     * @param message JSON zprava
+     * @return String odpoved ES nebo null pri chybe
+     */
     private String sendRQ(String hostES, String portES, String index, String typ, String method, String message) {
 
         String urlString = "";
@@ -120,10 +151,25 @@ class Ingest {
         return null;
     }
 
+    /**
+     * Pretizena verze metody pro odelsani pozadavku
+     * 
+     * @param url URL ES - cely string
+     * @param method GET, POST, PUT, DELETE
+     * @return String ES odpoved
+     */
     private String sendRQ(URL url, String method) {
         return sendRQ(url, method, "");
     }
 
+    /**
+     * Pretizena verze metody, ktera skutecne odesle REST RQ
+     * 
+     * @param url URL string pro pripojeni k ES
+     * @param method GET POST PUT DELETE
+     * @param message JSON zprava
+     * @return String odpoved ES null pri chybe
+     */
     private String sendRQ(URL url, String method, String message) {
         try {
             HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
