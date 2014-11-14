@@ -9,6 +9,7 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.simple.JSONObject;
@@ -62,11 +63,23 @@ class Ingest {
             BufferedReader br = new BufferedReader(new FileReader(soubor));
             String line = br.readLine();
             int i = 1;
+            
+            Random randomGenerator = new Random();
+            
             while (line != null) {
                // line = line.replaceAll("\\\\", "");
                // line = "{ \"body\" : \"" + line.replaceAll("\"", "") + "\"}";
                 JSONObject lineJS = new JSONObject();
                 lineJS.put("body", line);
+                lineJS.put("user", randomGenerator.nextInt(5000));
+                if (i <= 1000){
+                    lineJS.put("segment", "A");
+                }
+                if (i <= 3000 && i > 1000){
+                    lineJS.put("segment", "B");
+                } else {
+                    lineJS.put("segment", "C");
+                }
                 URL url = new URL("http://" + hostES + ":" + portES + "/" + index + "/" + type + "/" + i);
                 System.out.println(sendRQ(url, "PUT", lineJS.toString()));
                 line = br.readLine();
@@ -144,10 +157,7 @@ class Ingest {
 
         } catch (MalformedURLException ex) {
             Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
+        } 
         return null;
     }
 
